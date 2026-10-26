@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Interesting X · The Exponential Bridge: how smooth signals become steps</title>
+    <meta name="description" content="Watch the map of a ringing spring roll up into a computer's map through one formula, z = e^(sT). Drag the spring's motion past the glowing line and it blows up as its twin leaves the circle; sample too slowly and the snapshots trace a fake, slower wave." />
+    <meta name="theme-color" content="#0a0f1a" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1322'/%3E%3Ccircle cx='19' cy='16' r='8' fill='none' stroke='%23ffb23e' stroke-width='2.2'/%3E%3Cpath d='M5 6v20' stroke='%23ffb23e' stroke-width='2.2' stroke-linecap='round'/%3E%3Ccircle cx='17' cy='11' r='2' fill='%239bd83a'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage"></div>
+      <svg id="leaders" aria-hidden="true"></svg>
+      <div id="labels" aria-hidden="true"></div>
+
+      <header class="intro" id="intro">
+        <h1>The Exponential Bridge</h1>
+        <p class="sub">how smooth signals become steps</p>
+        <p class="hint">Drag a brass knob, or press <b>Bend into the z-plane</b>.</p>
+        <div class="top-btns">
+          <button class="btn chip numbers-btn" id="btn-numbers" type="button" aria-controls="numbers" aria-expanded="false">Numbers</button>
+          <button class="help" id="btn-help" type="button" aria-controls="explain" aria-expanded="false" aria-label="What am I looking at?"><i aria-hidden="true">?</i><span>What am I looking at?</span></button>
+        </div>
+      </header>
+
+      <div class="badge" id="badge" hidden>simple mode (no WebGL)</div>
+
+      <section class="panel dock collapsed-phone" id="dock" aria-label="Controls">
+        <button class="sheet-handle" id="btn-sheet" type="button" aria-controls="dock" aria-expanded="false"><i aria-hidden="true"></i><span id="sheet-label">More controls</span></button>
+        <p class="caption" id="caption" aria-live="polite"><i class="dot" aria-hidden="true"></i><span id="caption-text">This spring rings and fades. On the computer's map it sits inside the circle, so it settles.</span></p>
+
+        <label class="ctl rate-ctl">
+          <span class="ctl-row"><span class="cap">Sample faster ⟷ slower <span class="tag">T</span></span><span class="mono val" id="rate-val">2.0 / s</span></span>
+          <input id="rate" type="range" min="0" max="1000" step="1" value="0" aria-label="Sample faster or slower: how long between snapshots" />
+          <span class="desc" id="rate-desc">A snapshot every 0.50 s: it can follow wobbles up to 1.0 a second.</span>
+        </label>
+
+        <div class="btn-row main-row">
+          <button id="btn-bend" class="btn primary bend-btn" type="button" aria-pressed="false" title="Roll the flat map up into the computer's disc through z = e^(sT)">Bend into the z-plane</button>
+        </div>
+        <div class="btn-row">
+          <button id="btn-random" class="btn" type="button" title="Pick a random spring (sometimes too stiff to ring, sometimes unstable)">Random system</button>
+          <button id="btn-random-back" class="btn" type="button" title="Put the example spring back">Back to example</button>
+        </div>
+
+        <div class="presets">
+          <span class="cap">Try one</span>
+          <div class="chips">
+            <button class="btn chip" id="preset-ring" type="button" title="The example: rings half a time a second, fades in about 2 s">Gentle ring</button>
+            <button class="btn chip" id="preset-unstable" type="button" title="Move the motion just past the glowing line">Make it blow up</button>
+            <button class="btn chip" id="preset-alias" type="button" title="A fast ring sampled too slowly">Too fast to see</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btn-reset" class="btn" type="button" title="Restore everything: spring, snapshot rate, bend, options, view">Reset to example</button>
+          <button id="btn-advanced" class="btn" type="button" aria-expanded="false" aria-controls="adv">More</button>
+        </div>
+      </section>
+
+      <aside class="panel adv" id="adv" hidden aria-label="More">
+        <div class="adv-head">
+          <span class="cap">More, for the curious</span>
+          <button class="x" id="btn-adv-close" type="button" aria-label="Close">×</button>
+        </div>
+        <label class="ctl">
+          <span class="ctl-row"><span class="cap">Roll the map by hand <span class="tag">b</span></span><span class="mono val" id="bend-val">0.00</span></span>
+          <input id="bend" type="range" min="0" max="1" step="0.001" value="0" aria-label="Roll the map by hand: 0 flat, 1 wrapped into the disc" />
+          <span class="desc">Each vertex follows (e<sup>b·sT</sup> − 1)/b: flat at 0, exactly z = e<sup>sT</sup> at 1.</span>
+        </label>
+        <label class="check"><input id="show-strips" type="checkbox" /><span><span class="cap">Show the copies</span><span class="desc">Bands 2π/T tall: every band wraps onto the same disc, so the computer can't tell them apart (aliasing).</span></span></label>
+        <label class="check"><input id="show-tustin" type="checkbox" /><span><span class="cap">Engineers' shortcut (Tustin)</span><span class="desc">The bilinear map z = (1 + sT/2)/(1 − sT/2), drawn as violet rings next to the exact twins.</span></span></label>
+        <label class="check"><input id="show-step" type="checkbox" /><span><span class="cap">Step instead of tap</span><span class="desc">Push the spring and hold it (step response) instead of a sharp tap (impulse response).</span></span></label>
+      </aside>
+
+      <section class="numbers" id="numbers" aria-label="The numbers">
+        <div class="card" id="card">
+          <div class="card-title">The numbers</div>
+          <div class="row">
+            <span class="k">Natural motion <i>(pole: the system's own motion)</i></span>
+            <b class="mono" id="n-pole">s = −0.50 ± 3.14i</b>
+            <span class="m" id="n-pole-m">dies away by e every 2.0 s, wobbles 0.50 times a second</span>
+          </div>
+          <div class="row">
+            <span class="k">Where it lands on the disc</span>
+            <b class="mono" id="n-z">z = 0.78 ∠ ±1.57 rad</b>
+            <span class="m" id="n-z-m">size 0.78 (under 1 = settles)</span>
+          </div>
+          <div class="row">
+            <span class="k">Snapshot every</span>
+            <b class="mono" id="n-T">T = 0.50 s</b>
+            <span class="m" id="n-T-m">2.0 snapshots a second; fastest wobble it can see: 1.0 a second</span>
+          </div>
+          <div class="row alert" id="n-alias" hidden><span class="m" id="n-alias-m"></span></div>
+          <div class="row tustin" id="n-tustin" hidden>
+            <span class="k">Tustin puts it at</span>
+            <b class="mono" id="n-tz">z = —</b>
+            <span class="m" id="n-tz-m"></span>
+          </div>
+          <div class="plots">
+            <span class="k">How loud each wobble speed comes out</span>
+            <canvas id="plot" width="300" height="120" aria-label="Frequency response up the glowing line versus round the circle"></canvas>
+            <span class="m leg"><span><i class="sw mag"></i>smooth: up the glowing line</span><span><i class="sw tl"></i>computer: round the circle</span></span>
+          </div>
+        </div>
+        <div class="dial" id="dial">
+          <div class="dial-title">Settles or blows up?</div>
+          <svg viewBox="-12 0 144 80" class="gauge" aria-hidden="true">
+            <path class="g-track" d="M14 66 A48 48 0 0 1 106 66" />
+            <path class="g-ok" id="g-ok" d="" />
+            <path class="g-bad" id="g-bad" d="" />
+            <g id="g-ticks"></g>
+            <line class="needle" id="needle" x1="60" y1="66" x2="60" y2="24" />
+            <circle class="hub" cx="60" cy="66" r="5" />
+          </svg>
+          <div class="dial-val mono"><b id="d-z">0.78</b></div>
+          <div class="dial-desc">size of the twin |z|: under 1 settles, over 1 blows up</div>
+        </div>
+      </section>
+
+      <section class="panel explain-card" id="explain" role="dialog" aria-labelledby="explain-title" hidden>
+        <div class="explain-head">
+          <h2 id="explain-title">One formula joins smooth time and computer time</h2>
+          <button class="x" id="btn-explain-x" type="button" aria-label="Close explanation">×</button>
+        </div>
+        <p><b>What you're looking at:</b> Left: a map of every way a spring can move. Right-to-left says how fast the motion dies away; up-down says how fast it wobbles. The two brass knobs are this spring's own motion. Right: the same map as a computer sees it, taking a snapshot every T seconds.</p>
+        <p><b>Why it matters:</b> Every digital filter, audio plug-in and robot controller is a smooth design moved onto a computer. The bridge is z = e<sup>sT</sup>. The glowing line of never-fading wobbles becomes the circle; motions that die away land inside it; motions that blow up land outside. And because a circle repeats, wobbles that are too fast land on top of slow ones. That's aliasing. <span class="aside">(Engineers call the left map the Laplace s-plane and the right one the z-plane.)</span></p>
+        <p class="try"><span>How to use it</span></p>
+        <ol class="try-steps">
+          <li>Press <b>Bend into the z-plane</b> and watch the flat map roll up into the disc.</li>
+          <li>Drag a brass knob left or right: the spring rings longer or shorter, and its twin moves in or out on the disc.</li>
+          <li>Drag a knob past the glowing line: the spring blows up just as its twin leaves the circle.</li>
+          <li>Slide <b>Sample slower</b>: the green snapshots drift onto a slower fake wave when the wobble is too fast to see.</li>
+          <li><b>Reset to example</b> puts everything back.</li>
+        </ol>
+        <div class="explain-foot"><button class="btn primary" id="btn-explain-ok" type="button">Got it</button></div>
+      </section>
+
+      <footer class="credit credit-foot">
+        <span class="lead">Inspired by </span><a href="https://x.com/mathemetica/status/2104951749622563196" target="_blank" rel="noopener">@mathemetica</a><span class="wide"> ·
+        <a href="https://en.wikipedia.org/wiki/Z-transform" target="_blank" rel="noopener">Z-transform</a> ·
+        <a href="https://en.wikipedia.org/wiki/Impulse_invariance" target="_blank" rel="noopener">Impulse invariance</a> ·
+        <a href="https://en.wikipedia.org/wiki/Bilinear_transform" target="_blank" rel="noopener">Bilinear transform</a></span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
